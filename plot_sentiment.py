@@ -12,7 +12,7 @@ SMOOTHEN = True
 print sys.argv
 if len(sys.argv) > 4:
     SMOOTHEN = False
-SMOOTHEN = True #Dont smoothen
+SMOOTHEN = False #Dont smoothen
 title_1 = 'Sentiment of \'' + sys.argv[3] + '\' by month'
 if SMOOTHEN:
     title_1 += ' (smoothened)'
@@ -35,34 +35,57 @@ for year in range(1987, 2008):
 def plotSent(dataFile, legendLabel, style, color, linewidth=4):
     data = array([ (row[0].strip().split(".iter")[0], float(row[1].strip())) for row in csv.reader(open(dataFile), delimiter='\t') ])
 
+    
     n = len(data)
     sent = data[:, 1]
+    monthArr = data[:, 0]
+    
+    sentPerMonth = [0] * len(months)
+    for i in range(n):
+        sentPerMonth[revmap[monthArr[i]]] = float(sent[i])
+
     #print sent[0:10]
     if SMOOTHEN:
         sent = [float(x) for x in sent]
         #smoothSum = add(add(sent,  sent[1:] + [0]),  [0] +  sent[:-1])
         #smoothDiv = [2] + ( [3] * (len(sent) - 2)) + [2]
-        windowSize = max(3, int(0.05 * n)) #Rationale: There are 10 ticks shown on UI. Try to have not more than one heavy fluctuation per tick
         smoothSum = [0] * n
         smoothDiv = [0] * n
+        prevMonths = 2
+        futureMonths = 0
+        for i in range(n):
+            #Smoothen over prev month and next month, if exists
+            neighMin = revmap[monthArr[i]] - prevMonths
+            neighMax = revmap[monthArr[i]] + futureMonths 
+            for j in range(-prevMonths, futureMonths + 1):
+                idx = i + j
+                if idx >= 0 and idx < n and neighMin <= revmap[monthArr[idx]] <= neighMax:
+                    smoothDiv[i] += 1
+                    smoothSum[i] += sent[idx]
+
+
+        """
+        windowSize = max(3, int(0.05 * n)) #Rationale: There are 10 ticks shown on UI. Try to have not more than one heavy fluctuation per tick
         print windowSize
         for i in range(n):
             for j in range(max(0, i - windowSize/2), min(n-1, i + windowSize/2) + 1):
                 smoothSum[i] += sent[j]
                 smoothDiv[i] += 1
-
+        """
         sent = divide(smoothSum, smoothDiv)
     #num_ticks = (len(data) + 1)/min(10, len(data) + 1)
     print legendLabel
-    print zip(data[:, 0], ["%2.3f" % (s) for s in sent])
-    num_ticks = min(10, len(data) + 1)
+    print zip(data[:, 0], ["%2.3f" % (float(s)) for s in sent])
+    num_ticks = min(40, len(data) + 1)
     xvals = [revmap[month] for month in data[:, 0]]
     minMonth = revmap[min(data[:, 0])]
     maxMonth = revmap[max(data[:, 0])]
     ticks = list(linspace(minMonth, maxMonth, num_ticks).astype('uint32'))
     if ticks[-1] != maxMonth:
         ticks.append(maxMonth)
-    xticks(ticks, [months[val] for val in ticks], rotation=20)
+    xticks(ticks, [months[val] for val in ticks], rotation=90)
+    #xticks([revmap[m] for m in monthArr], monthArr, rotation=90)
+    #xticks(ticks, [months[val] for val in ticks], rotation=20)
     #print sent[0:10]
     pylab.plot(xvals, sent, style, color=color, linewidth=linewidth, label=legendLabel)
     #xticks(range(1, len(data) + 1)[::num_ticks], data[:, 0][::num_ticks], rotation=20)

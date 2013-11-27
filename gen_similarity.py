@@ -33,12 +33,14 @@ for x in csv.reader(open('graphs/wordmaps/' + root + '.wordmap'), delimiter='\t'
     wordMap[int(x[0])] = x[1]
 
 mp ={}
+weightMap = zeros((len(entMap) + 1, len(wordMap) + 1))
 for [ent, word, weight] in M:
     if weight <= 1: 
         continue
     if ent not in mp:
         mp[ent] = []
     mp[ent] += [(word, weight)]
+    weightMap[ent][word] = weight
 
 for ent in mp:
     mp[ent] = list(reversed(sorted(mp[ent], key=lambda x: x[1])))
@@ -64,7 +66,7 @@ def similarity(wi1, wi2):
         pass
         #print("exc")
 
-    if val == None:
+    if val == None or val < 0.151: #Ignore all those which aren't similar
         val = -2
 
     mc[key] = val
@@ -103,7 +105,7 @@ def handleEnt(ents):
         t2 = currentms()
 
 #        print "t2: ",t2 - t1
-        indices = m.compute(copy(wSimMat))
+        indices = m.compute(copy(wSimMat)) #Computes smallest bipartite matching
         t3 = currentms()
         total = 0
         count = 0
@@ -115,15 +117,20 @@ def handleEnt(ents):
                 count += 1
                 #wordfile.write("%s\t%s\t%2.3f\n" % (entMap[ent1], wordMap[w1[row]], -1 * value))
                 #wordfile.write("%s\t%s\t%2.3f\n" % (entMap[ent2], wordMap[w2[column]], -1 * value))
-                wordfileEntries.append("%4d\t%4d\t%4d\t%4d\t%2.3f\n" % (ent1, w1[row], ent2, w2[column], -1 * value))
+                wordfileEntries.append("%4d\t%4d\t%4d\t%4d\t%2.3f\t%3d\t%3d\n" % \
+                (ent1, w1[row], ent2, w2[column], -1 * value, \
+                weightMap[int(ent1)][int(w1[row])], weightMap[int(ent2)][int(w2[column])]))
 
         t4 = currentms()
         if count > 0:
             total = float(total)/count
 #        print ent1,ent2," t: ",t4 - t1
         #outfile.write("%s\t%s\t%2.3f\n" % (entMap[ent1], entMap[ent2], total))
-        outfileEntry = "%4d\t%4d\t%2.3f\n" % (ent1, ent2, total)
-        return outfileEntry, wordfileEntries
+        if total > 0:
+            outfileEntry = "%4d\t%4d\t%2.3f\n" % (ent1, ent2, total)
+            return outfileEntry, wordfileEntries
+        else:
+            return "", []
 
 p = Pool(8)
 entries = p.map(handleEnt, ents)
@@ -136,8 +143,8 @@ for ent in ents:
 
 from itertools import chain
 
-outfileEntries = list(sorted([e[0] for e in entries]))
-wordfileEntries = list(chain.from_iterable([e[1] for e in entries]))
+outfileEntries = list(sorted([e[0] for e in entries if e[0] != ""]))
+wordfileEntries = list(chain.from_iterable([e[1] for e in entries if len(e[1]) > 0]))
 
 
 outfile = open("wsim_10_words/" + root + ".graph", "w")

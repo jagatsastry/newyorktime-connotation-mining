@@ -11,9 +11,10 @@ function dump_to_file() {
     if [ ! -e $sent_dir ] ; then
         mkdir $sent_dir
     fi
-
+    
+    ITER=1
     NO_SMOOTH=$2
-    file=$sent_dir/$keyword.sent
+    file=$sent_dir/"$keyword"_iter_"$ITER".sent
     if [ "$NO_SMOOTH" != "" ] ; then
         file="$file".sent
     else
@@ -22,7 +23,7 @@ function dump_to_file() {
 
     echo $file
     return
-    grep "$entity" -i $dir_name/*iter_0*.ent   |  sed "s#$dir_name##g" | sed "s#^/##g" | sort -k 1 > $file
+    grep "$entity" -i $dir_name/*iter_"$ITER"*.ent   |  sed "s#$dir_name##g" | sed "s#^/##g" | sort -k 1 > $file
     echo $file
 }
 
